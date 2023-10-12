@@ -1,8 +1,7 @@
 package binaryeq.jmutator;
 
 import com.google.common.base.Preconditions;
-import foo.SomeClass;
-import org.apache.commons.cli.*;
+import org.json.JSONObject;
 import org.pitest.classinfo.ClassByteArraySource;
 import org.pitest.classinfo.ClassName;
 import org.pitest.mutationtest.engine.Mutater;
@@ -14,6 +13,7 @@ import org.pitest.mutationtest.engine.gregor.MethodMutatorFactory;
 import org.pitest.mutationtest.engine.gregor.config.DefaultMutationEngineConfiguration;
 import org.pitest.mutationtest.engine.gregor.config.Mutator;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,57 +22,38 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
 /**
- * Main class to convert a class files within a folder.
+ * Mutate all class files within a folder.
  * @author jens dietrich
  */
-public class Main {
+public class ClassMutator {
 
-    public static void main (String[] args) throws IOException, ParseException {
+    // separate method to facilitate unit testing
+    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify) throws IOException {
 
-        Options options = new Options();
-        options.addRequiredOption("s", "source folder", true, "root folder containing .class files");
-        options.addRequiredOption("d", "destination folder", true, "folder to write the mutated  .class files to");
-        options.addRequiredOption("p", "conversion pattern", true, "a pattern used to name mutated class files, must contain the strings $n (the original class file name without extension) and $i (the mutation number, and int))");
-        options.addRequiredOption("j", "provenance pattern", true, "a pattern used to name json-encoded provenance files, must contain the strings $n (the original class file name without extension) and $i (the mutation number, and int))");
+        Preconditions.checkArgument(binDir.exists(), "bin folder does not exist: " + binDir.getAbsolutePath());
+        Preconditions.checkArgument(binDir.isDirectory(), "bin folder does not a directory: " + binDir.getAbsolutePath());
 
-        CommandLineParser parser = new DefaultParser();
-        CommandLine cmd = parser.parse(options, args);
+        Preconditions.checkArgument(mutatedBinDir.exists(), "destination folder for mutated bins does not exist: " + binDir.getAbsolutePath());
+        Preconditions.checkArgument(mutatedBinDir.isDirectory(), "destination folder for mutated bins does not a directory: " + binDir.getAbsolutePath());
 
-        String srcDirName = cmd.getOptionValue("s");
-        File srcDir = new File(srcDirName);
-        Preconditions.checkArgument(srcDir.exists(), "source folder does not exist: " + srcDir.getAbsolutePath());
-        Preconditions.checkArgument(srcDir.isDirectory(), "source folder does not a directory: " + srcDir.getAbsolutePath());
-
-        String destDirName = cmd.getOptionValue("d");
-        File destDir = new File(destDirName);
-        Preconditions.checkArgument(destDir.exists(), "destination folder does not exist: " + destDir.getAbsolutePath());
-        Preconditions.checkArgument(destDir.isDirectory(), "destination folder does not a directory: " + destDir.getAbsolutePath());
-
-        String classConversionPattern = cmd.getOptionValue("p");
         Preconditions.checkArgument(classConversionPattern.contains("$n"), "class conversion pattern does not contains $n -- the class name");
         Preconditions.checkArgument(classConversionPattern.contains("$i"), "class conversion pattern does not contains $i -- the mutation id");
 
-        String provenanceInfoConversionPattern = cmd.getOptionValue("p");
         Preconditions.checkArgument(provenanceInfoConversionPattern.contains("$n"), "provenance info conversion pattern does not contains $n -- the class name");
         Preconditions.checkArgument(provenanceInfoConversionPattern.contains("$i"), "provenance info conversion pattern does not contains $i -- the mutation id");
 
-        mutateClassFiles(srcDir,destDir,classConversionPattern,provenanceInfoConversionPattern);
-    }
 
-    // separate method to facilitate unit testing
-    static void mutateClassFiles(File srcDir, File destDir, String classConversionPattern, String provenanceInfoConversionPattern) throws IOException {
         // use only default PITEST mutator -- TODO make switch to use all incl experimental
-        System.out.println("Using default pitest mutators");
+        System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
         final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
 
         final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
         MutationEngine engine = new GregorMutationEngine(config);
-        ClassByteArraySource byteSource = new FileClassByteArraySource(srcDir);
+        ClassByteArraySource byteSource = new FileClassByteArraySource(binDir);
         Mutater mutater = engine.createMutator(byteSource);
 
-        List<String> classNames = findClassNames(srcDir);
+        List<String> classNames = findClassNames(binDir);
         for (String name:classNames) {
             ClassName className = ClassName.fromString(name);
             List<MutationDetails> mutations = mutater.findMutations(className);
@@ -81,23 +62,67 @@ public class Main {
                 MutationIdentifier id = mutation.getId();
                 byte[] mutatedClassByteCode = mutater.getMutation(id).getBytes();
 
-                String mutatedClassName = classConversionPattern
-                    .replace("$n", name)
-                    .replace("$i", "" + (i + 1));
+                boolean bytecodeVerified = true;
+                if (verify) {
+                    bytecodeVerified = Verifier.check(mutatedClassByteCode);
+                }
 
-                File mutatedClassFile = new File(destDir, mutatedClassName);
-                Files.write(mutatedClassFile.toPath(), mutatedClassByteCode);
-                System.out.println("File written: " + mutatedClassFile);
+                if (bytecodeVerified) {
+                    String mutatedClassName = instantiateTemplate(classConversionPattern, name, i);
+                    File mutatedClassFile = new File(mutatedBinDir, mutatedClassName);
+                    mutatedClassFile.getParentFile().mkdirs();
+                    Files.write(mutatedClassFile.toPath(), mutatedClassByteCode);
+                    System.out.println("mutated class file written: " + mutatedClassFile);
+
+                    String provenanceInfoFileName = instantiateTemplate(provenanceInfoConversionPattern, name, i);
+                    File provenanceInfoFile = new File(mutatedBinDir, provenanceInfoFileName);
+                    provenanceInfoFile.getParentFile().mkdirs();
+
+                    JSONObject json = serializeMutationDetails(mutation);
+                    try (FileWriter out = new FileWriter(provenanceInfoFile)) {
+                        String prettyPrinted = json.toString(4);
+                        out.write(prettyPrinted);
+                    }
+                    System.out.println("provenance info file written: " + provenanceInfoFile);
+                }
+                else {
+                    System.out.println("verification failed for generated bytecode, result not written");
+                }
             }
         }
     }
 
-    static List<String> findClassNames(File srcDir) throws IOException {
-        try (Stream<Path> stream = Files.walk(srcDir.toPath())) {
+    static String instantiateTemplate(String template, String name, int index) {
+        return template
+            .replace("$n", name.replace('.','/'))
+            .replace("$i", "" + (index + 1));
+    }
+
+    static JSONObject serializeMutationDetails(MutationDetails mutation) {
+        JSONObject json = new JSONObject();
+        json.put("mutator", mutation.getMutator());
+        json.put("description", mutation.getDescription());
+
+        JSONObject location = new JSONObject();
+        location.put("class",mutation.getId().getLocation().getClassName());
+        location.put("method-name",mutation.getId().getLocation().getMethodName());
+        location.put("method-descriptor",mutation.getId().getLocation().getMethodDesc());
+        location.put("line", mutation.getLineNumber());
+        json.put("location",location);
+
+        return json;
+    }
+
+    static List<String> findClassNames(File binDir) throws IOException {
+        try (Stream<Path> stream = Files.walk(binDir.toPath())) {
             return stream
                 .filter(Files::isRegularFile)
                 .filter(f -> f.toString().endsWith(".class"))
-                .map(f -> f.toString().replace("/","."))
+                .map(f -> {
+                    Path f2 = binDir.toPath().relativize(f);
+                    String s = f2.toString().replace('/','.');
+                    return s.substring(0,s.length()-".class".length());
+                })
                 .collect(Collectors.toList());
         }
     }
