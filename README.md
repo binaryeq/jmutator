@@ -1,10 +1,10 @@
 # jmutator
 
 This is a tool to mutate Java bytecode (.class files). The input is a folder with .class files,
-and the tool will produce several mutations (.class files) for each. The names of the mutations
-can be specified using a simple template language. See examples for details. 
+and the tool will produce several mutations (.class files) for each. The names of the mutated class files
+can be specified using a simple template language. See examples in tests for details. 
 
-For each mutated .class file, a provevance file in JSON format is created that describes the mutations made.
+For each mutated .class file, a provenance file in JSON format is created that describes the mutations made.
 [pitest](https://pitest.org/) is used as mutation engine. This should always result in valid bytecode, 
 but the tool also has the option to run additional bytecode verification based on ASM as described [here](https://asm.ow2.io/javadoc/org/objectweb/asm/util/CheckClassAdapter.html).
 
@@ -37,4 +37,23 @@ usage: java -jar jmutator.jar
                                       (verification is ASM-based, will
                                       result in error if verification
                                       fails)
+```
+
+
+### Provenance
+
+This is an example of a mutation provenance file that is being generated for each mutated .class file:
+
+```json
+{
+    "description": "negated conditional",
+    "location": {
+        "line": 6,
+        "method-descriptor": "(I)Z",
+        "method-name": "isEvenNumber",
+        "class": "com.foo.PrimeNumberChecker"
+    },
+    "mutator": "org.pitest.mutationtest.engine.gregor.mutators.NegateConditionalsMutator"
+}
+
 ```
