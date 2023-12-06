@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 public class ClassMutator {
 
     // separate method to facilitate unit testing
-    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify) throws IOException {
+    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify, Collection<MethodMutatorFactory> mutators) throws IOException {
 
         Preconditions.checkArgument(binDir.exists(), "bin folder does not exist: " + binDir.getAbsolutePath());
         Preconditions.checkArgument(binDir.isDirectory(), "bin folder does not a directory: " + binDir.getAbsolutePath());
@@ -44,12 +44,7 @@ public class ClassMutator {
         Preconditions.checkArgument(provenanceInfoConversionPattern.contains("$i"), "provenance info conversion pattern does not contains $i -- the mutation id");
 
 
-        // use only default PITEST mutator -- TODO make switch to use all incl experimental
-//        System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
-        System.out.println("using all pitest mutators except EXPERIMENTAL");
-//        final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
-        final Collection<MethodMutatorFactory> mutators = Mutator.all().stream().filter(m -> !m.getName().contains("EXPERIMENTAL")).collect(Collectors.toList());
-        System.out.println(mutators.size() + " mutators will be used (all is " + Mutator.all().size() + "; default is " + Mutator.newDefaults().size() + "):");
+        System.out.println("Using " + mutators.size() + " mutators:");
         for (MethodMutatorFactory mutator : mutators) {
             System.out.println("    " + mutator.getName());
         }

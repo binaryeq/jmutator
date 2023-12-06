@@ -4,11 +4,14 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.pitest.mutationtest.engine.gregor.MethodMutatorFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Collection;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,6 +21,7 @@ public class ClassMutatorTest {
 
     private static File mutatedBinDir = null;
     private static File binDir = null;
+    private static Collection<MethodMutatorFactory> mutators = null;
 
     private static String mutatedClassNameTemplate = "$n-$i.class";
     private static String provenanceInfoNameTemplate = "$n-$i.json";
@@ -29,6 +33,7 @@ public class ClassMutatorTest {
             mutatedBinDir.mkdirs();
         }
         binDir = new File(ClassMutatorTest.class.getResource("/testproject/target/classes").getFile());
+        mutators = MethodMutatorFactoryFactory.getMethodMutatorFactories(MethodMutatorFactoryFactory.getDefaultMethodMutatorFactoriesId());
     }
 
     @BeforeEach
@@ -43,7 +48,7 @@ public class ClassMutatorTest {
 
     @Test
     public void testMutations () throws IOException {
-        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,false);
+        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,false, mutators);
         String className = "com.foo.PrimeNumberChecker";
         // files exist
         assertTrue(new File(mutatedBinDir,ClassMutator.instantiateTemplate(mutatedClassNameTemplate,className,0)).exists());
@@ -56,7 +61,7 @@ public class ClassMutatorTest {
 
     @Test
     public void testValidityOfValidBytecode1 () throws IOException {
-        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,true);
+        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,true, mutators);
         List<File> mutatedClassFiles = Files.walk(mutatedBinDir.toPath())
             .filter(Files::isRegularFile)
             .filter(f -> f.toString().endsWith(".class"))
@@ -70,7 +75,7 @@ public class ClassMutatorTest {
 
     @Test
     public void testValidityOfValidBytecode2 () throws IOException {
-        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,false);
+        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,false, mutators);
         List<File> mutatedClassFiles = Files.walk(mutatedBinDir.toPath())
             .filter(Files::isRegularFile)
             .filter(f -> f.toString().endsWith(".class"))
@@ -85,7 +90,7 @@ public class ClassMutatorTest {
 
     @Test
     public void testMutationProvenance () throws IOException {
-        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,false);
+        ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,provenanceInfoNameTemplate,false, mutators);
         String className = "com.foo.PrimeNumberChecker";
         // files exist
         assertTrue(new File(mutatedBinDir,ClassMutator.instantiateTemplate(provenanceInfoNameTemplate,className,0)).exists());
@@ -106,25 +111,25 @@ public class ClassMutatorTest {
     @Test
     public void testMutatedClassNameTemplate1 () {
         // $n missing
-        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,"foo-$i.class",provenanceInfoNameTemplate,false));
+        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,"foo-$i.class",provenanceInfoNameTemplate,false, mutators));
     }
 
     @Test
     public void testMutatedClassNameTemplate2 () {
         // $i missing
-        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,"foo-$n.class",provenanceInfoNameTemplate,false));
+        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,"foo-$n.class",provenanceInfoNameTemplate,false, mutators));
     }
 
     @Test
     public void testMutationProvenanceFileNameTemplate1 () {
         // $n missing
-        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,"foo-$i.json",false));
+        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,"foo-$i.json",false, mutators));
     }
 
     @Test
     public void testMutationProvenanceFileNameTemplate2 () {
         // $i missing
-        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,"foo-$n.json",false));
+        assertThrows(IllegalArgumentException.class, () -> ClassMutator.mutateClassFiles(binDir,mutatedBinDir,mutatedClassNameTemplate,"foo-$n.json",false, mutators));
     }
 
 }
