@@ -51,6 +51,11 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Without this, Maven 3.6.3 defaults to version 2.12.4 which doesn't run @BeforeAll methods -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.1</version>
+            </plugin>
         </plugins>
     </build>
 
