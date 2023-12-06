@@ -45,8 +45,14 @@ public class ClassMutator {
 
 
         // use only default PITEST mutator -- TODO make switch to use all incl experimental
-        System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
-        final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
+//        System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
+        System.out.println("using all pitest mutators except EXPERIMENTAL");
+//        final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
+        final Collection<MethodMutatorFactory> mutators = Mutator.all().stream().filter(m -> !m.getName().contains("EXPERIMENTAL")).collect(Collectors.toList());
+        System.out.println(mutators.size() + " mutators will be used (all is " + Mutator.all().size() + "; default is " + Mutator.newDefaults().size() + "):");
+        for (MethodMutatorFactory mutator : mutators) {
+            System.out.println("    " + mutator.getName());
+        }
 
         final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
         MutationEngine engine = new GregorMutationEngine(config);
