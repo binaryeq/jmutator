@@ -34,8 +34,8 @@ public class ClassMutator {
         Preconditions.checkArgument(binDir.exists(), "bin folder does not exist: " + binDir.getAbsolutePath());
         Preconditions.checkArgument(binDir.isDirectory(), "bin folder does not a directory: " + binDir.getAbsolutePath());
 
-        Preconditions.checkArgument(mutatedBinDir.exists(), "destination folder for mutated bins does not exist: " + binDir.getAbsolutePath());
-        Preconditions.checkArgument(mutatedBinDir.isDirectory(), "destination folder for mutated bins does not a directory: " + binDir.getAbsolutePath());
+        Preconditions.checkArgument(mutatedBinDir.exists(), "destination folder for mutated bins does not exist: " + mutatedBinDir.getAbsolutePath());
+        Preconditions.checkArgument(mutatedBinDir.isDirectory(), "destination folder for mutated bins does not a directory: " + mutatedBinDir.getAbsolutePath());
 
         Preconditions.checkArgument(classConversionPattern.contains("$n"), "class conversion pattern does not contains $n -- the class name");
         Preconditions.checkArgument(classConversionPattern.contains("$i"), "class conversion pattern does not contains $i -- the mutation id");
