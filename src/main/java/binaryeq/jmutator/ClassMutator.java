@@ -50,7 +50,7 @@ public class ClassMutator {
 
 //        final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
         final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> {
-            System.err.println("methodFilter predicate called with " + i + ".");     //DEBUG
+            System.err.println("methodFilter predicate called with " + i + " from class " + i.getOwningClass() + ".");     //DEBUG
             return true;
         }, mutators);
         MutationEngine engine = new GregorMutationEngine(config);
