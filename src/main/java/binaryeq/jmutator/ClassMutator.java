@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 public class ClassMutator {
 
     // separate method to facilitate unit testing
-    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify) throws IOException {
+    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify, Collection<MethodMutatorFactory> mutators) throws IOException {
 
         Preconditions.checkArgument(binDir.exists(), "bin folder does not exist: " + binDir.getAbsolutePath());
         Preconditions.checkArgument(binDir.isDirectory(), "bin folder does not a directory: " + binDir.getAbsolutePath());
@@ -44,9 +44,10 @@ public class ClassMutator {
         Preconditions.checkArgument(provenanceInfoConversionPattern.contains("$i"), "provenance info conversion pattern does not contains $i -- the mutation id");
 
 
-        // use only default PITEST mutator -- TODO make switch to use all incl experimental
-        System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
-        final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
+        System.out.println("Using " + mutators.size() + " mutators:");
+        for (MethodMutatorFactory mutator : mutators) {
+            System.out.println("    " + mutator.getName());
+        }
 
         final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
         MutationEngine engine = new GregorMutationEngine(config);
