@@ -48,7 +48,11 @@ public class ClassMutator {
         System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
         final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
 
-        final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
+//        final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
+        final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> {
+            System.err.println("methodFilter predicate called with " + i + ".");     //DEBUG
+            return true;
+        }, mutators);
         MutationEngine engine = new GregorMutationEngine(config);
         ClassByteArraySource byteSource = new FileClassByteArraySource(binDir);
         Mutater mutater = engine.createMutator(byteSource);

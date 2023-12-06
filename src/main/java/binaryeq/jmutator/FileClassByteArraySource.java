@@ -20,6 +20,7 @@ public class FileClassByteArraySource implements ClassByteArraySource {
 
     @Override
     public Optional<byte[]> getBytes(String className) {
+        System.err.println("FileClassByteArraySource.getBytes(" + className + ") called.");     //DEBUG
         File classFile = new File(folder,className.replace('.','/')+".class");
         if (!classFile.exists()) {
             throw new IllegalArgumentException("Class not found in " + folder.getAbsolutePath() + ": " + className);
