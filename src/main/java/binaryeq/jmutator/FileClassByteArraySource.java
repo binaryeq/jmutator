@@ -12,6 +12,8 @@ import java.util.Optional;
 
 /**
  * Read class definition from a .class file.
+ * Falls back to calling the same {@link ClassByteArraySource} that pitest's own {@code MutationTestMinion} does if it
+ * can't find the class in the bin folder. This is needed for finding system classes, e.g., {@code java/io/IOException}.
  * @author jens dietrich
  */
 public class FileClassByteArraySource implements ClassByteArraySource {
@@ -23,18 +25,16 @@ public class FileClassByteArraySource implements ClassByteArraySource {
         this.folder = folder;
 
         //HACK: Set up a fallback ClassByteArraySource to load bytecode for classes outside the bin folder.
-        // Mimicks what pitest's own MutationTestMinion.java does. Fragile.
+        // Mimics what pitest's own MutationTestMinion.java does. Fragile.
         final ClassLoader loader = IsolationUtils.getContextClassLoader();
         fallbackByteSource = new CachingByteArraySource(new ClassloaderByteArraySource(loader), CACHE_SIZE);
     }
 
     @Override
     public Optional<byte[]> getBytes(String className) {
-        System.err.println("FileClassByteArraySource.getBytes(" + className + ") called.");     //DEBUG
         File classFile = new File(folder,className.replace('.','/')+".class");
         if (!classFile.exists()) {
-//            throw new IllegalArgumentException("Class not found in " + folder.getAbsolutePath() + ": " + className);
-            System.err.println("FileClassByteArraySource.getBytes(" + className + "): Class file " + classFile + " not present, so falling back.");
+            System.out.println("FileClassByteArraySource.getBytes(" + className + "): Class file " + classFile + " not present, so falling back.");
             return fallbackByteSource.getBytes(className);
         }
         try {
