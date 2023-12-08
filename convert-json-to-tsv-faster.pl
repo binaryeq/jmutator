@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+# Hacks metadata from the filename into a surrounding JSON object so that jq can be run just once on the entire stream.
+
 use strict;
 use warnings;
 
