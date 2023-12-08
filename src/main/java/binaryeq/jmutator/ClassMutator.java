@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,13 +30,13 @@ import java.util.stream.Stream;
 public class ClassMutator {
 
     // separate method to facilitate unit testing
-    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify) throws IOException {
+    static void mutateClassFiles(File binDir, File mutatedBinDir, String classConversionPattern, String provenanceInfoConversionPattern, boolean verify, Collection<MethodMutatorFactory> mutators, Predicate<MutationDetails> shouldKeepMutation) throws IOException {
 
         Preconditions.checkArgument(binDir.exists(), "bin folder does not exist: " + binDir.getAbsolutePath());
         Preconditions.checkArgument(binDir.isDirectory(), "bin folder does not a directory: " + binDir.getAbsolutePath());
 
-        Preconditions.checkArgument(mutatedBinDir.exists(), "destination folder for mutated bins does not exist: " + binDir.getAbsolutePath());
-        Preconditions.checkArgument(mutatedBinDir.isDirectory(), "destination folder for mutated bins does not a directory: " + binDir.getAbsolutePath());
+        Preconditions.checkArgument(mutatedBinDir.exists(), "destination folder for mutated bins does not exist: " + mutatedBinDir.getAbsolutePath());
+        Preconditions.checkArgument(mutatedBinDir.isDirectory(), "destination folder for mutated bins does not a directory: " + mutatedBinDir.getAbsolutePath());
 
         Preconditions.checkArgument(classConversionPattern.contains("$n"), "class conversion pattern does not contains $n -- the class name");
         Preconditions.checkArgument(classConversionPattern.contains("$i"), "class conversion pattern does not contains $i -- the mutation id");
@@ -44,9 +45,10 @@ public class ClassMutator {
         Preconditions.checkArgument(provenanceInfoConversionPattern.contains("$i"), "provenance info conversion pattern does not contains $i -- the mutation id");
 
 
-        // use only default PITEST mutator -- TODO make switch to use all incl experimental
-        System.out.println("using default pitest mutators: org.pitest.mutationtest.engine.gregor.config.Mutator::newDefaults");
-        final Collection<MethodMutatorFactory> mutators = Mutator.newDefaults();
+        System.out.println("Using " + mutators.size() + " mutators:");
+        for (MethodMutatorFactory mutator : mutators) {
+            System.out.println("    " + mutator.getName());
+        }
 
         final DefaultMutationEngineConfiguration config = new DefaultMutationEngineConfiguration(i -> true, mutators);
         MutationEngine engine = new GregorMutationEngine(config);
@@ -57,36 +59,43 @@ public class ClassMutator {
         for (String name:classNames) {
             ClassName className = ClassName.fromString(name);
             List<MutationDetails> mutations = mutater.findMutations(className);
+            int iSuccessfulMutation = 0;
             for (int i = 0; i < mutations.size(); i++) {
                 MutationDetails mutation = mutations.get(i);
                 MutationIdentifier id = mutation.getId();
-                byte[] mutatedClassByteCode = mutater.getMutation(id).getBytes();
 
-                boolean bytecodeVerified = true;
-                if (verify) {
-                    bytecodeVerified = Verifier.check(mutatedClassByteCode);
-                }
+                String mutatedClassName = instantiateTemplate(classConversionPattern, name, iSuccessfulMutation);
+                File mutatedClassFile = new File(mutatedBinDir, mutatedClassName);
 
-                if (bytecodeVerified) {
-                    String mutatedClassName = instantiateTemplate(classConversionPattern, name, i);
-                    File mutatedClassFile = new File(mutatedBinDir, mutatedClassName);
-                    mutatedClassFile.getParentFile().mkdirs();
-                    Files.write(mutatedClassFile.toPath(), mutatedClassByteCode);
-                    System.out.println("mutated class file written: " + mutatedClassFile);
+                if (shouldKeepMutation.test(mutation)) {
+                    byte[] mutatedClassByteCode = mutater.getMutation(id).getBytes();
 
-                    String provenanceInfoFileName = instantiateTemplate(provenanceInfoConversionPattern, name, i);
-                    File provenanceInfoFile = new File(mutatedBinDir, provenanceInfoFileName);
-                    provenanceInfoFile.getParentFile().mkdirs();
-
-                    JSONObject json = serializeMutationDetails(mutation);
-                    try (FileWriter out = new FileWriter(provenanceInfoFile)) {
-                        String prettyPrinted = json.toString(4);
-                        out.write(prettyPrinted);
+                    boolean bytecodeVerified = true;
+                    if (verify) {
+                        bytecodeVerified = Verifier.check(mutatedClassByteCode);
                     }
-                    System.out.println("provenance info file written: " + provenanceInfoFile);
-                }
-                else {
-                    System.out.println("verification failed for generated bytecode, result not written");
+
+                    if (bytecodeVerified) {
+                        mutatedClassFile.getParentFile().mkdirs();
+                        Files.write(mutatedClassFile.toPath(), mutatedClassByteCode);
+                        System.out.println("mutated class file written: " + mutatedClassFile);
+
+                        String provenanceInfoFileName = instantiateTemplate(provenanceInfoConversionPattern, name, iSuccessfulMutation);
+                        File provenanceInfoFile = new File(mutatedBinDir, provenanceInfoFileName);
+                        provenanceInfoFile.getParentFile().mkdirs();
+
+                        JSONObject json = serializeMutationDetails(mutation);
+                        try (FileWriter out = new FileWriter(provenanceInfoFile)) {
+                            String prettyPrinted = json.toString(4);
+                            out.write(prettyPrinted);
+                        }
+                        System.out.println("provenance info file written: " + provenanceInfoFile);
+                        ++iSuccessfulMutation;
+                    } else {
+                        System.out.println("verification failed for generated bytecode for " + mutatedClassFile + ", result not written");
+                    }
+                } else {
+                    System.out.println("Decided not to keep raw mutation " + i + " for class " + className + " (would have been " + mutatedClassFile + ")");
                 }
             }
         }
