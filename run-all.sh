@@ -17,6 +17,7 @@ mkdir -p "jars/EQ/$COMPILER"
 for f in `cat latest_project_versions.txt`; do echo $f; cp "$JARS/$COMPILER/$f" "jars/EQ/$COMPILER"; done
 
 # Generate mutated classes
+mvn package
 mkdir -p "jars/NEQ2/$COMPILER"
 time for d in jars/EQ/$COMPILER/*; do echo $d; m=${d/EQ/NEQ2}; echo $m; mkdir -p $m && java -jar target/jmutator.jar -b $d -m $m -p '$n-$i.class' -j '$n-$i.json' -v >$m.stdout 2>$m.stderr; done
 
