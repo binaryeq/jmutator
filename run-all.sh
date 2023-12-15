@@ -12,9 +12,9 @@ fi
 # I decided on this compiler version manually
 COMPILER="${COMPILER:-openjdk-11.0.19}"
 
-# Copy selected project versions to local dir
+# Extract selected project versions to local dir
 mkdir -p "jars/EQ/$COMPILER"
-for f in `cat latest_project_versions.txt`; do echo $f; cp "$JARS/$COMPILER/$f" "jars/EQ/$COMPILER"; done
+for f in `cat latest_project_versions.txt`; do echo "$f"; d="jars/EQ/$COMPILER/${f%.jar}"; echo "$d"; mkdir -p "$d"; ( cd "$d" && unzip "$JARS/$COMPILER/$f" ); done
 
 # Generate mutated classes
 mvn package
