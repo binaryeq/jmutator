@@ -6,15 +6,18 @@ then
 	exit 1
 fi
 
-# List latest compilable versions of each project into latest_project_versions.txt
+# List latest compilable versions of each project into latest_project_versions_with_tests.txt
 ./select-project-versions.sh
 
 # I decided on this compiler version manually
 COMPILER="${COMPILER:-openjdk-11.0.19}"
 
+# Find the subset of jars that actually exist (not all projects have buildable test jars)
+for f in `cat latest_project_versions_with_tests.txt`; do if [ -e "$JARS/$COMPILER/$f" ]; then echo $f; fi; done > actually_existing_latest_project_versions.txt
+
 # Extract selected project versions to local dir
 mkdir -p "jars/EQ/$COMPILER"
-for f in `cat latest_project_versions.txt`; do echo "$f"; d="jars/EQ/$COMPILER/${f%.jar}"; echo "$d"; mkdir -p "$d"; ( cd "$d" && unzip "$JARS/$COMPILER/$f" ); done
+for f in `cat actually_existing_latest_project_versions.txt`; do echo "$f"; d="jars/EQ/$COMPILER/${f%.jar}"; echo "$d"; mkdir -p "$d"; ( cd "$d" && unzip "$JARS/$COMPILER/$f" ); done
 
 # Generate mutated classes
 mvn package
