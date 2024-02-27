@@ -28,4 +28,4 @@ time for d in jars/EQ/$COMPILER/*; do echo $d; m=${d/EQ/NEQ2}; echo $m; mkdir -p
 time ./convert-json-to-tsv-faster.sh > NEQ2.tsv
 
 # Jar up classes
-time for d in jars/NEQ2/$COMPILER/*/; do echo $d; b=`basename ${d%/}`; echo $b; ( cd `dirname $d` && find $b -name '*.class' > $b.filelist && jar --create --file $b.jar @$b.filelist ) ; done
+time for d in jars/NEQ2/$COMPILER/*/; do echo $d; b=`basename ${d%/}`; echo $b; ( cd $d && find * -name '*.class' > ../$b.filelist && jar --create --file ../$b.jar @../$b.filelist ) ; done
